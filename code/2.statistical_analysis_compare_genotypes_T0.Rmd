@@ -1,0 +1,273 @@
+---
+title: "DMD mdx corticosteroids project: Statistical analysis - Compare genotypes at T0"
+author: Simina Boca
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.path = "figures/")
+```
+
+```{r chunk1}
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(nlme)
+library(qvalue)
+source("functions.R")
+```
+
+## Read in data
+
+```{r chunk2}
+MasterFrame <- read.delim(file="../data/Supplemental Table 1.tsv",
+                          header=TRUE,
+                          sep="\t",
+                          check.names=FALSE)
+```
+
+## Prepare data 
+
+Prepare data for analysis:
+
+### Take out QC samples
+
+```{r chunk3}
+##first take out the QC samples
+MasterFrameNoQC <- MasterFrame[MasterFrame$SampleID != "QC",]
+##only include interaction terms between Times T1/T2 and Group variables (since just one group 2 at baseline)
+MasterFrameNoQC$TimeT1 <- MasterFrameNoQC$TimeT2 <- 
+  MasterFrameNoQC$GenoMDX <- 
+  MasterFrameNoQC$GroupPred <- 
+  rep(0, nrow(MasterFrameNoQC)) 
+MasterFrameNoQC$TimeT1[MasterFrameNoQC$Time=="T1"] <- 1
+MasterFrameNoQC$TimeT2[MasterFrameNoQC$Time=="T2"] <- 1
+MasterFrameNoQC$GenoMDX[MasterFrameNoQC$Genotype=="mdx23"] <- 1
+MasterFrameNoQC$GroupPred[MasterFrameNoQC$Group=="group 1"] <- 1
+
+dim(MasterFrame)
+dim(MasterFrameNoQC)
+```
+
+### Remove samples with 0 variance at T0
+
+```{r}
+
+##get metabolites
+mets <- colnames(MasterFrameNoQC)[grep("m/z",colnames(MasterFrameNoQC))]
+
+##actually look at top 75% most variable metabolites
+##metsMostVar <- names(sort(sapply(MasterFrameNoQC[,mets],var))[round(0.25*length(mets)):length(mets)])
+
+##mets <- metsMostVar
+
+MasterFrame_T0 <- subset(MasterFrameNoQC, Time=="T0")
+##remove any metabolites with variance = 0
+var0 <- names(which(apply(MasterFrame_T0[,mets],2,var)==0))
+var0
+##look at this peak!
+unique(MasterFrame_T0[,var0])
+
+MasterFrame_T0 <- select(MasterFrame_T0, -one_of(var0))
+mets <- setdiff(mets, var0)
+
+length(mets)
+```
+
+## Run t-tests
+
+Run t-tests with assumption of equal variance:
+
+```{r chunk4_equal_var}
+
+t_tests_equal <- lapply(MasterFrame_T0[,mets],
+                        function(metInt, geno){
+                          ##full model
+                          t.test(metInt[geno==1],metInt[geno==0],
+                                 var.equal=TRUE)
+                        }, 
+                        MasterFrame_T0$GenoMDX)
+```
+
+Run t-tests with assumption of unequal variance:
+
+```{r chunk4_diff_var}
+
+t_tests_diff <- lapply(MasterFrame_T0[,mets],
+                        function(metInt, geno){
+                          ##full model
+                          t.test(metInt[geno==1],metInt[geno==0],
+                                 var.equal=FALSE)
+                        }, 
+                        MasterFrame_T0$GenoMDX)
+
+```
+
+Get p-values from both types of test to compare them:
+```{r chunk5}
+p_vals_equal <- sapply(t_tests_equal, function(t){t$p.value})
+p_vals_diff <- sapply(t_tests_diff, function(t){t$p.value})
+
+cor(p_vals_equal, p_vals_diff)
+plot(p_vals_equal, p_vals_diff)
+
+p_vals <- p_vals_equal
+```
+
+Take a big-picture view of these p-values:
+```{r chunk6}
+hist(p_vals, col="grey")
+qvalue(p_vals)$pi0
+
+round((1-qvalue(p_vals)$pi0)*100)
+
+sum(p_vals < 0.05/length(p_vals))
+```
+
+## Look at creatine, creatinine, validated MS/MS peaks
+
+Take a look at putative creatine and creatinine p-values:
+```{r chunk7}
+mets_114 <- names(p_vals)[grep("m/z = 114\\.(0|1)",names(p_vals))]
+mets_114 <- mets_114[grep("Positive",mets_114)]
+p_vals[mets_114]
+
+mets_132 <- names(p_vals)[grep("m/z = 132\\.(0|1)",names(p_vals))]
+mets_132 <- mets_132[grep("Positive",mets_132)]
+p_vals[mets_132]
+```
+
+Make some plots for these metabolites plus the two ones that were validated in MS/MS:
+```{r chunk8}
+met_top <- names(sort(p_vals))[1]
+met_top
+met_creatinine <- mets_114
+met_creatinine
+met_creatine <- mets_132[grep("132.077",mets_132)]
+met_creatine
+met_hypusine <- "m/z = 234.18087, mode = Positive, RT = 19.39639"
+met_biliverdin <- "m/z = 583.25604, mode = Positive, RT = 381.06653"
+met_484 <- "m/z = 484.16091, mode = Negative, RT = 155.62501"
+met_885 <- "m/z = 884.92954, mode = Positive, RT = 231.26267"
+
+met_229 <- "m/z = 229.15522, mode = Positive, RT = 25.16714"
+```
+Change genotype from "mdx23" to "mdx":
+```{r}
+MasterFrame_T0$Genotype <- as.character(MasterFrame_T0$Genotype)
+MasterFrame_T0$Genotype[MasterFrame_T0$Genotype == "mdx23"] <- "mdx"
+```
+
+```{r boxplots_geno_T0, fig.height=3, fig.width=16}
+box1 <- ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_top,"`",sep=""))) +
+  geom_boxplot(fill="grey") +
+  geom_point() +
+  ylab("Normalized, log2-transformed value") +
+  ggtitle("a)\nm/z = 357.25, Positive mode") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust=0.5))
+
+box2 <- ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_creatinine,"`",sep=""))) +
+  geom_boxplot(fill="grey") +
+  geom_point() +
+  ylab("Normalized, log2-transformed value") +
+  ggtitle("b)\nCreatinine") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust=0.5))
+
+box3 <- ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_creatine,"`",sep=""))) +
+  geom_boxplot(fill="grey") +
+  geom_point() +
+  ylab("Normalized, log2-transformed value") +
+  ggtitle("c)\nCreatine") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust=0.5))
+
+box4 <- ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_hypusine,"`",sep=""))) +
+  geom_boxplot(fill="grey") +
+  geom_point() +
+  ylab("Normalized, log2-transformed value") +
+  ggtitle("d)\nHypusine") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust=0.5))
+
+box5 <- ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_biliverdin,"`",sep=""))) +
+  geom_boxplot(fill="grey") +
+  geom_point() +
+  ylab("Normalized, log2-transformed value") +
+  ggtitle("e)\nBiliverdin") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust=0.5))
+
+multiplot(box1, box2, box3, box4, box5, cols=5)
+```
+
+```{r boxplots_geno_T0_Supp_2}
+ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_484,"`",sep=""))) +
+  geom_boxplot(fill="grey") +
+  geom_point() +
+  ylab("Normalized, log2-transformed value") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust=0.5))
+```
+
+```{r boxplots_geno_T0_Supp_3}
+ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_885,"`",sep=""))) +
+  geom_boxplot(fill="grey") +
+  geom_point() +
+  ylab("Normalized, log2-transformed value") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust=0.5))
+```
+
+Look at metabolite 229:
+```{r boxplots_met_229}
+ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_229,"`",sep=""))) +
+  geom_boxplot(fill="grey") +
+  geom_point() +
+  ylab("Normalized, log2-transformed value") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust=0.5))
+```
+
+Save everything:
+```{r}
+save(list=ls(), file = "../objs/stat_analysis_geno_T0.RData")
+```
+
+Dump top 50 peaks in a file:
+```{r}
+##see what rank creatine is at
+rank(p_vals)[met_creatine]
+p_vals[met_creatine]
+p_vals[met_creatine]*length(p_vals)
+
+p_vals <- sort(p_vals)
+top_peaks <- names(which(rank(p_vals)<=50))
+p_vals_top_peaks <- p_vals[top_peaks]
+
+info_top_peaks <- strsplit(top_peaks, ", ")
+mz_top_peaks <- as.numeric(gsub("m/z = ", "", sapply(info_top_peaks, function(x){x[1]})))
+mode_top_peaks <- gsub("mode = ", "", sapply(info_top_peaks, function(x){x[2]}))
+rt_top_peaks <- as.numeric(gsub("RT = ", "", sapply(info_top_peaks, function(x){x[3]})))
+
+##also get difference in means
+log2_fold_change <- sapply(t_tests_equal, function(t){means <- t$estimate; means[1]-means[2]})
+names(log2_fold_change) <- names(t_tests_equal)
+
+top_peaks_df <- data.frame(mz = mz_top_peaks, mode = mode_top_peaks, 
+                           rt = rt_top_peaks,
+                           p_value = p_vals_top_peaks,
+                           log2_fold_change = log2_fold_change[top_peaks])
+##sort by mode (to make look-up easier)
+top_peaks_df <- top_peaks_df[order(top_peaks_df$mode),]
+write.csv(top_peaks_df, file="../top_peaks_compare_genotypes_T0_urine.csv",
+          row.names = FALSE)
+```
+
+## Session info
+
+```{r}
+sessionInfo()
+```

@@ -1,0 +1,152 @@
+---
+title: "DMD mdx corticosteroids project: Exploratory analysis"
+author: Simina Boca
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(nlme)
+library(plotly)
+```
+
+## Read in data
+
+```{r}
+MasterFrame <- read.delim(file="../data/Supplemental Table 1.tsv",
+                          header=TRUE,
+                          sep="\t",
+                          check.names=FALSE)
+```
+
+## Get number of samples per group
+
+```{r}
+T_mdx23 <- 
+  as.data.frame.matrix(table(MasterFrame$Group[MasterFrame$Genotype=="mdx23"], 
+                             MasterFrame$Time[MasterFrame$Genotype=="mdx23"]))
+
+T_WT <- 
+  as.data.frame.matrix(table(MasterFrame$Group[MasterFrame$Genotype=="WT"], 
+                             MasterFrame$Time[MasterFrame$Genotype=="WT"]))
+
+```
+
+## Make PCA plots to check for batch effects, artifacts
+
+### First get PCA decompositions:
+
+PCA for negative mode:
+```{r}
+dataNEG <- MasterFrame[,grep("Negative",colnames(MasterFrame))]
+
+PCAneg <- prcomp(as.matrix(dataNEG),
+                 center=TRUE, scale=TRUE)$x
+dim(PCAneg)
+
+MasterFrame <- cbind(MasterFrame, PCneg1 = PCAneg[,1], PCneg2 = PCAneg[,2])
+```
+
+PCA for positive mode:
+```{r}
+dataPOS <- MasterFrame[,grep("Positive",colnames(MasterFrame))]
+
+PCApos <- prcomp(as.matrix(dataPOS),
+                 center=TRUE, scale=TRUE)$x
+dim(PCApos)
+
+MasterFrame <- cbind(MasterFrame, PCpos1 = PCApos[,1], PCpos2 = PCApos[,2])
+```
+
+PCA for both modes:
+```{r}
+dataAll <- MasterFrame[,grep("m/z",colnames(MasterFrame))]
+
+PCAall <- prcomp(as.matrix(dataAll),
+                 center=TRUE, scale=TRUE)$x
+dim(PCAall)
+
+MasterFrame <- cbind(MasterFrame, PCall1 = PCAall[,1], PCall2 = PCAall[,2])
+```
+
+### Negative mode
+
+```{r}
+plot_ly(MasterFrame, y = ~PCneg2, x = ~PCneg1, color= ~Time, type = "scatter",
+        hoverinfo = 'text',
+        text = ~paste(Sample))
+```
+```{r}
+plot_ly(MasterFrame, y = ~PCneg2, x = ~PCneg1, color= ~Genotype, type = "scatter",
+        hoverinfo = 'text',
+        text = ~paste(Sample))
+```
+```{r}
+plot_ly(MasterFrame, y = ~PCneg2, x = ~PCneg1, color= ~Group, type = "scatter",
+        hoverinfo = 'text',
+        text = ~paste(Sample))
+```
+```{r}
+plot_ly(MasterFrame, y = ~PCneg2, x = ~PCneg1, color= ~run_order, type = "scatter",
+        hoverinfo = 'text',
+        text = ~paste(Sample))
+```
+
+### Positive mode
+
+```{r}
+plot_ly(MasterFrame, y = ~PCpos2, x = ~PCpos1, color= ~Time, type = "scatter",
+        hoverinfo = 'text',
+        text = ~paste(Sample))
+```
+```{r}
+plot_ly(MasterFrame, y = ~PCpos2, x = ~PCpos1, color= ~Genotype, type = "scatter",
+        hoverinfo = 'text',
+        text = ~paste(Sample))
+```
+```{r}
+plot_ly(MasterFrame, y = ~PCpos2, x = ~PCpos1, color= ~Group, type = "scatter",
+        hoverinfo = 'text',
+        text = ~paste(Sample))
+```
+```{r}
+plot_ly(MasterFrame, y = ~PCpos2, x = ~PCpos1, color= ~run_order, type = "scatter",
+        hoverinfo = 'text',
+        text = ~paste(Sample))
+```
+
+### Both modes
+
+```{r}
+plot_ly(MasterFrame, y = ~PCall2, x = ~PCall1, color= ~Time, type = "scatter",
+        hoverinfo = 'text',
+        text = ~paste(Sample))
+```
+```{r}
+plot_ly(MasterFrame, y = ~PCall2, x = ~PCall1, color= ~Genotype, type = "scatter",
+        hoverinfo = 'text',
+        text = ~paste(Sample))
+```
+```{r}
+plot_ly(MasterFrame, y = ~PCall2, x = ~PCall1, color= ~Group, type = "scatter",
+        hoverinfo = 'text',
+        text = ~paste(Sample))
+```
+```{r}
+plot_ly(MasterFrame, y = ~PCall2, x = ~PCall1, color= ~run_order, type = "scatter",
+        hoverinfo = 'text',
+        text = ~paste(Sample))
+```
+
+## Session info
+
+```{r}
+sessionInfo()
+```
