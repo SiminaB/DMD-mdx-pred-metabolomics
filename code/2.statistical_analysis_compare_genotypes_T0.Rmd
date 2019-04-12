@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, fig.path = "figures/")
+knitr::opts_chunk$set(echo = TRUE, fig.path = "../figures/")
 ```
 
 ```{r chunk1}
@@ -15,6 +15,7 @@ library(reshape2)
 library(ggplot2)
 library(nlme)
 library(qvalue)
+library(car)
 source("functions.R")
 ```
 
@@ -77,13 +78,31 @@ length(mets)
 
 ## Run t-tests
 
+First check equal variance assumptions with Levene's test:
+
+```{r}
+
+levene_test <- lapply(MasterFrame_T0[,mets],
+                      function(metInt, geno){
+                        leveneTest(lm(metInt~geno))[["Pr(>F)"]][1]
+                      }, 
+                      MasterFrame_T0$Genotype)
+
+head(as.numeric(levene_test))
+hist(as.numeric(levene_test), col="grey")
+```
+
+Get the estimated proportion of null Levene's tests:
+```{r}
+qvalue(as.numeric(levene_test))$pi0
+```
+
 Run t-tests with assumption of equal variance:
 
 ```{r chunk4_equal_var}
 
 t_tests_equal <- lapply(MasterFrame_T0[,mets],
                         function(metInt, geno){
-                          ##full model
                           t.test(metInt[geno==1],metInt[geno==0],
                                  var.equal=TRUE)
                         }, 
@@ -96,7 +115,6 @@ Run t-tests with assumption of unequal variance:
 
 t_tests_diff <- lapply(MasterFrame_T0[,mets],
                         function(metInt, geno){
-                          ##full model
                           t.test(metInt[geno==1],metInt[geno==0],
                                  var.equal=FALSE)
                         }, 
@@ -112,7 +130,17 @@ p_vals_diff <- sapply(t_tests_diff, function(t){t$p.value})
 cor(p_vals_equal, p_vals_diff)
 plot(p_vals_equal, p_vals_diff)
 
+sum(p_vals_diff <= 0.05/length(p_vals_diff))
+
 p_vals <- p_vals_equal
+```
+
+Also get some other statistics:
+```{r}
+DFs <- sapply(t_tests_equal, function(t){as.numeric(t$parameter)})
+t_stats <- sapply(t_tests_equal, function(t){as.numeric(t$statistic)})
+CI95_lower <- sapply(t_tests_equal, function(t){t$conf.int[1]})
+CI95_upper <- sapply(t_tests_equal, function(t){t$conf.int[2]})
 ```
 
 Take a big-picture view of these p-values:
@@ -125,7 +153,7 @@ round((1-qvalue(p_vals)$pi0)*100)
 sum(p_vals < 0.05/length(p_vals))
 ```
 
-## Look at creatine, creatinine, validated MS/MS peaks
+## Look at creatine, creatinine, putatively identified MS/MS peaks
 
 Take a look at putative creatine and creatinine p-values:
 ```{r chunk7}
@@ -138,7 +166,7 @@ mets_132 <- mets_132[grep("Positive",mets_132)]
 p_vals[mets_132]
 ```
 
-Make some plots for these metabolites plus the two ones that were validated in MS/MS:
+Make some plots for these metabolites plus the two ones that were putatively identified via MS/MS:
 ```{r chunk8}
 met_top <- names(sort(p_vals))[1]
 met_top
@@ -153,28 +181,33 @@ met_885 <- "m/z = 884.92954, mode = Positive, RT = 231.26267"
 
 met_229 <- "m/z = 229.15522, mode = Positive, RT = 25.16714"
 ```
-Change genotype from "mdx23" to "mdx":
+
+Change genotype coding from "mdx23" to "mdx":
 ```{r}
 MasterFrame_T0$Genotype <- as.character(MasterFrame_T0$Genotype)
 MasterFrame_T0$Genotype[MasterFrame_T0$Genotype == "mdx23"] <- "mdx"
 ```
 
-```{r boxplots_geno_T0, fig.height=3, fig.width=16}
+```{r boxplots_geno_T0_top_row, fig.height=3, fig.width=8}
 box1 <- ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_top,"`",sep=""))) +
   geom_boxplot(fill="grey") +
   geom_point() +
   ylab("Normalized, log2-transformed value") +
   ggtitle("a)\nm/z = 357.25, Positive mode") +
   theme_bw() +
-  theme(plot.title = element_text(hjust=0.5))
+  theme(plot.title = element_text(size = 13, hjust=0.5),
+        axis.title = element_text(size=12),
+        axis.text = element_text(size=11))
 
 box2 <- ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_creatinine,"`",sep=""))) +
   geom_boxplot(fill="grey") +
   geom_point() +
-  ylab("Normalized, log2-transformed value") +
+  ylab("Normalized, log2-transformed values") +
   ggtitle("b)\nCreatinine") +
   theme_bw() +
-  theme(plot.title = element_text(hjust=0.5))
+  theme(plot.title = element_text(size = 13, hjust=0.5),
+        axis.title = element_text(size=12),
+        axis.text = element_text(size=11))
 
 box3 <- ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_creatine,"`",sep=""))) +
   geom_boxplot(fill="grey") +
@@ -182,43 +215,61 @@ box3 <- ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_creatine
   ylab("Normalized, log2-transformed value") +
   ggtitle("c)\nCreatine") +
   theme_bw() +
-  theme(plot.title = element_text(hjust=0.5))
+  theme(plot.title = element_text(size = 13, hjust=0.5),
+        axis.title = element_text(size=12),
+        axis.text = element_text(size=11))
 
+multiplot(box1, box2, box3, cols=3)
+```
+
+```{r boxplots_geno_T0_bottom_row, fig.height=3, fig.width=5.3}
 box4 <- ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_hypusine,"`",sep=""))) +
   geom_boxplot(fill="grey") +
   geom_point() +
-  ylab("Normalized, log2-transformed value") +
+  ylab("Normalized, log2-transformed values") +
   ggtitle("d)\nHypusine") +
   theme_bw() +
-  theme(plot.title = element_text(hjust=0.5))
+  theme(plot.title = element_text(size = 13, hjust=0.5),
+        axis.title = element_text(size=12),
+        axis.text = element_text(size=11))
 
 box5 <- ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_biliverdin,"`",sep=""))) +
   geom_boxplot(fill="grey") +
   geom_point() +
-  ylab("Normalized, log2-transformed value") +
+  ylab("Normalized, log2-transformed values") +
   ggtitle("e)\nBiliverdin") +
   theme_bw() +
-  theme(plot.title = element_text(hjust=0.5))
+  theme(plot.title = element_text(size = 13, hjust=0.5),
+        axis.title = element_text(size=12),
+        axis.text = element_text(size=11))
 
-multiplot(box1, box2, box3, box4, box5, cols=5)
+multiplot(box4, box5, cols=2)
 ```
 
 ```{r boxplots_geno_T0_Supp_2}
 ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_484,"`",sep=""))) +
+  ggtitle("m/z = 484.16, Negative mode") +
   geom_boxplot(fill="grey") +
   geom_point() +
-  ylab("Normalized, log2-transformed value") +
+  ylab("Normalized, log2-transformed values") +
   theme_bw() +
-  theme(plot.title = element_text(hjust=0.5))
+  theme(plot.title = element_text(size = 13, hjust=0.5),
+        axis.title = element_text(size=12),
+        axis.text = element_text(size=11),
+        legend.text = element_text(size=11))
 ```
 
 ```{r boxplots_geno_T0_Supp_3}
 ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_885,"`",sep=""))) +
+  ggtitle("m/z = 884.93, Positive mode") +
   geom_boxplot(fill="grey") +
   geom_point() +
-  ylab("Normalized, log2-transformed value") +
+  ylab("Normalized, log2-transformed values") +
   theme_bw() +
-  theme(plot.title = element_text(hjust=0.5))
+  theme(plot.title = element_text(size = 13, hjust=0.5),
+        axis.title = element_text(size=12),
+        axis.text = element_text(size=11),
+        legend.text = element_text(size=11))
 ```
 
 Look at metabolite 229:
@@ -226,7 +277,7 @@ Look at metabolite 229:
 ggplot(MasterFrame_T0, aes_string(x="Genotype", y=paste("`",met_229,"`",sep=""))) +
   geom_boxplot(fill="grey") +
   geom_point() +
-  ylab("Normalized, log2-transformed value") +
+  ylab("Normalized, log2-transformed values") +
   theme_bw() +
   theme(plot.title = element_text(hjust=0.5))
 ```
@@ -256,14 +307,24 @@ rt_top_peaks <- as.numeric(gsub("RT = ", "", sapply(info_top_peaks, function(x){
 log2_fold_change <- sapply(t_tests_equal, function(t){means <- t$estimate; means[1]-means[2]})
 names(log2_fold_change) <- names(t_tests_equal)
 
+```
+
+```{r}
 top_peaks_df <- data.frame(mz = mz_top_peaks, mode = mode_top_peaks, 
                            rt = rt_top_peaks,
-                           p_value = p_vals_top_peaks,
-                           log2_fold_change = log2_fold_change[top_peaks])
+                           log2_fold_change = log2_fold_change[top_peaks],
+                           df = DFs[top_peaks],
+                           CI95_lower = CI95_lower[top_peaks],
+                           CI95_upper = CI95_upper[top_peaks],
+                           t_stat = t_stats[top_peaks],
+                           p_value = p_vals_top_peaks)
 ##sort by mode (to make look-up easier)
 top_peaks_df <- top_peaks_df[order(top_peaks_df$mode),]
+
+dim(top_peaks_df)
+
 write.csv(top_peaks_df, file="../top_peaks_compare_genotypes_T0_urine.csv",
-          row.names = FALSE)
+          row.names = FALSE, quote=FALSE)
 ```
 
 ## Session info

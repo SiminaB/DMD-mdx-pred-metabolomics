@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, fig.path = "figures/")
+knitr::opts_chunk$set(echo = TRUE, fig.path = "../figures/")
 ```
 
 ```{r}
@@ -104,104 +104,17 @@ sum(samples_times[,1]*(1-samples_times[,2]))
 sum(samples_times[,2]*(1-samples_times[,1]))
 ```
 
-## Make some plots for some of the known interesting metabolites
+## Make plots
+
+First label the interesting metabolites:
 ```{r}
 met_top <- "m/z = 357.24594, mode = Positive, RT = 20.659"
 met_creatine <- "m/z = 132.07757, mode = Positive, RT = 23.18143"
 met_creatinine <- "m/z = 114.06447, mode = Positive, RT = 22.59731"
 met_hypusine <- "m/z = 234.18087, mode = Positive, RT = 19.39639"
 met_biliverdin <- "m/z = 583.25604, mode = Positive, RT = 381.06653"
-
-ggplot(MasterFrameNoQC, aes_string(x="Time", y=paste("`",met_top,"`",sep=""),
-                                   group="SampleID", color="Group", linetype="Group")) +
-  geom_point() +
-  geom_line(aes(color=Genotype)) +
-  scale_color_manual(name = "Genotype and group", 
-                     breaks = c("group 1", "group 2", "WT", "mdx23"),
-                     labels = c("group 1", "group 2", "WT", "mdx23"),
-                     values = c(1, 3, 2, 4))
-
-ggplot(MasterFrameNoQC, aes_string(x="Time", y=paste("`",met_top,"`",sep=""),
-                                   group="SampleID", color="Group")) +
-  geom_point() +
-  geom_line(aes(color=Genotype)) +
-  facet_grid(. ~ Group) +
-  scale_color_manual(name = "Genotype and group", 
-                     breaks = c("group 1", "group 2", "WT", "mdx23"),
-                     labels = c("group 1", "group 2", "WT", "mdx23"),
-                     values = c(1, 3, 2, 4)) 
-
-ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met_top,"`",sep=""),
-                                     group="SampleID", color="Genotype", linetype="Group")) +
-  geom_point() +
-  geom_line() +
-  scale_color_manual(name = "Genotype", 
-                     breaks = c("WT", "mdx23"),
-                     labels = c("WT", "mdx23"),
-                     values = c(2, 4))
-
-############################################################
-
-ggplot(MasterFrameNoQC, aes_string(x="Time", y=paste("`",met_creatine,"`",sep=""),
-                                   group="SampleID", color="Group", linetype="Group")) +
-  geom_point() +
-  geom_line(aes(color=Genotype)) +
-  scale_color_manual(name = "Genotype and group", 
-                     breaks = c("group 1", "group 2", "WT", "mdx23"),
-                     labels = c("group 1", "group 2", "WT", "mdx23"),
-                     values = c(1, 3, 2, 4))
-
-ggplot(MasterFrameNoQC, aes_string(x="Time", y=paste("`",met_creatine,"`",sep=""),
-                                   group="SampleID", color="Group")) +
-  geom_point() +
-  geom_line(aes(color=Genotype)) +
-  facet_grid(. ~ Group) +
-  scale_color_manual(name = "Genotype and group", 
-                     breaks = c("group 1", "group 2", "WT", "mdx23"),
-                     labels = c("group 1", "group 2", "WT", "mdx23"),
-                     values = c(1, 3, 2, 4))
-
-ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met_creatine,"`",sep=""),
-                                     group="SampleID", color="Genotype", linetype="Group")) +
-  geom_point() +
-  geom_line() +
-  scale_color_manual(name = "Genotype", 
-                     breaks = c("WT", "mdx23"),
-                     labels = c("WT", "mdx23"),
-                     values = c(2, 4))
-
-############################################################
-
-ggplot(MasterFrameNoQC, aes_string(x="Time", y=paste("`",met_creatinine,"`",sep=""),
-                                   group="SampleID", color="Group", linetype="Group")) +
-  geom_point() +
-  geom_line(aes(color=Genotype)) +
-  scale_color_manual(name = "Genotype and group", 
-                     breaks = c("group 1", "group 2", "WT", "mdx23"),
-                     labels = c("group 1", "group 2", "WT", "mdx23"),
-                     values = c(1, 3, 2, 4))
-
-ggplot(MasterFrameNoQC, aes_string(x="Time", y=paste("`",met_creatinine,"`",sep=""),
-                                   group="SampleID", color="Group")) +
-  geom_point() +
-  geom_line(aes(color=Genotype)) +
-  facet_grid(. ~ Group) +
-  scale_color_manual(name = "Genotype and group", 
-                     breaks = c("group 1", "group 2", "WT", "mdx23"),
-                     labels = c("group 1", "group 2", "WT", "mdx23"),
-                     values = c(1, 3, 2, 4))
-
-ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met_creatinine,"`",sep=""),
-                                     group="SampleID", color="Genotype", linetype="Group")) +
-  geom_point() +
-  geom_line() +
-  scale_color_manual(name = "Genotype", 
-                     breaks = c("WT", "mdx23"),
-                     labels = c("WT", "mdx23"),
-                     values = c(2, 4))
 ```
 
-## Make the plots for the paper
 Change genotype from "mdx23" to "mdx":
 ```{r}
 MasterFrame_T1_T2$Genotype <- as.character(MasterFrame_T1_T2$Genotype)
@@ -212,11 +125,9 @@ MasterFrame_T1_T2$Treatment <- as.character(MasterFrame_T1_T2$Treatment)
 MasterFrame_T1_T2$Treatment[MasterFrame_T1_T2$Treatment == "group 1"] <- "prednisolone"
 MasterFrame_T1_T2$Treatment[MasterFrame_T1_T2$Treatment == "group 2"] <- "vehicle control"
 
-
 ```
 
-```{r plots_T1_T2, fig.height=3, fig.width=25}
-
+```{r plots_T1_T2_top_row, fig.height=3, fig.width=15}
 plot1 <- ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met_top,"`",sep=""),
                                               group="SampleID", color="Genotype", shape="Genotype", 
                                               linetype="Treatment")) +
@@ -233,7 +144,9 @@ plot1 <- ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met_top,"`",
   ylab("Normalized, log2-transformed value") + 
   ggtitle("a)\nm/z = 357.25, Positive mode") +
   theme_bw() +
-  theme(plot.title = element_text(hjust=0.5),
+  theme(plot.title = element_text(size = 13, hjust=0.5),
+        axis.title = element_text(size=12),
+        axis.text = element_text(size=11),
         legend.text = element_text(size=11))
 
 plot2 <- ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met_creatinine,"`",sep=""),
@@ -252,7 +165,9 @@ plot2 <- ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met_creatini
   ylab("Normalized, log2-transformed value") + 
   ggtitle("b)\nCreatinine") +
   theme_bw() +
-  theme(plot.title = element_text(hjust=0.5),
+  theme(plot.title = element_text(size = 13, hjust=0.5),
+        axis.title = element_text(size=12),
+        axis.text = element_text(size=11),
         legend.text = element_text(size=11))
 
 plot3 <- ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met_creatine,"`",sep=""),
@@ -271,9 +186,15 @@ plot3 <- ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met_creatine
   ylab("Normalized, log2-transformed value") + 
   ggtitle("c)\nCreatine") +
   theme_bw() +
-  theme(plot.title = element_text(hjust=0.5),
+  theme(plot.title = element_text(size = 13, hjust=0.5),
+        axis.title = element_text(size=12),
+        axis.text = element_text(size=11),
         legend.text = element_text(size=11))
 
+multiplot(plot1, plot2, plot3, cols=3)
+```
+
+```{r plots_T1_T2_bottom_row, fig.height=3, fig.width=10}
 plot4 <- ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met_hypusine,"`",sep=""),
                                               group="SampleID", color="Genotype", shape="Genotype", 
                                               linetype="Treatment")) +
@@ -290,7 +211,9 @@ plot4 <- ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met_hypusine
   ylab("Normalized, log2-transformed value") + 
   ggtitle("d)\nHypusine") +
   theme_bw() +
-  theme(plot.title = element_text(hjust=0.5),
+  theme(plot.title = element_text(size = 13, hjust=0.5),
+        axis.title = element_text(size=12),
+        axis.text = element_text(size=11),
         legend.text = element_text(size=11))
 
 plot5 <- ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met_biliverdin,"`",sep=""),
@@ -309,125 +232,37 @@ plot5 <- ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met_biliverd
   ylab("Normalized, log2-transformed value") + 
   ggtitle("e)\nBiliverdin") +
   theme_bw() +
-  theme(plot.title = element_text(hjust=0.5),
+  theme(plot.title = element_text(size = 13, hjust=0.5),
+        axis.title = element_text(size=12),
+        axis.text = element_text(size=11),
         legend.text = element_text(size=11))
 
-multiplot(plot1, plot2, plot3, plot4, plot5, cols=5)
-
+multiplot(plot4, plot5, cols=2)
 ```
 
-Compare values of creatine at T0 for WT for Group 1 vs Group 2:
+Compare values of creatine and biliverdin at T0 for WT for Group 1 vs Group 2.
+Are they significantly different from each other? Also do this for mdx separately.
 
 ```{r}
 MasterFrame_T0_WT <- filter(MasterFrame_T0, GenoMDX==0)
-ggplot(MasterFrame_T0_WT, aes_string(x="Group",y=paste("`",met_creatine,"`",sep=""))) +
-  geom_boxplot() + geom_point()
-```
+MasterFrame_T0_mdx <- filter(MasterFrame_T0, GenoMDX==1)
 
-Are they significantly different from each other?
-
-```{r}
 t.test(MasterFrame_T0_WT[MasterFrame_T0_WT$Group=="group 1",met_creatine],
-       MasterFrame_T0_WT[MasterFrame_T0_WT$Group=="group 2",met_creatine])
+       MasterFrame_T0_WT[MasterFrame_T0_WT$Group=="group 2",met_creatine],
+       var.equal = TRUE)
+t.test(MasterFrame_T0_mdx[MasterFrame_T0_WT$Group=="group 1",met_creatine],
+       MasterFrame_T0_mdx[MasterFrame_T0_WT$Group=="group 2",met_creatine],
+       var.equal = TRUE)
 
+t.test(MasterFrame_T0_WT[MasterFrame_T0_WT$Group=="group 1",met_biliverdin],
+       MasterFrame_T0_WT[MasterFrame_T0_WT$Group=="group 2",met_biliverdin],
+       var.equal = TRUE)
+t.test(MasterFrame_T0_mdx[MasterFrame_T0_WT$Group=="group 1",met_biliverdin],
+       MasterFrame_T0_mdx[MasterFrame_T0_WT$Group=="group 2",met_biliverdin],
+       var.equal = TRUE)
 ```
 
-What about for the metabolite with weight of 357?
-
-```{r}
-ggplot(MasterFrame_T0_WT, aes_string(x="Group",y=paste("`",met_top,"`",sep=""))) +
-  geom_boxplot() + geom_point()
-```
-
-Are they significantly different from each other?
-
-```{r}
-t.test(MasterFrame_T0_WT[MasterFrame_T0_WT$Group=="group 1",met_top],
-       MasterFrame_T0_WT[MasterFrame_T0_WT$Group=="group 2",met_top])
-
-```
-
-## Test hypotheses relating to impact of genotype, group, and time for these metabolites
-
-Fit models:
-
-```{r}
-mets <- c(met_top, met_creatine)
-##full models
-lme_full <- lapply(MasterFrame_T1_T2[,mets],
-                    function(metInt, geno, group, Times, ID){
-                      ##full model
-                      lme(metInt ~ geno*Times*group, random =~ 1 | ID,
-                          method="ML");
-                    }, 
-                    MasterFrame_T1_T2$GenoMDX, MasterFrame_T1_T2$GroupPred, 
-                    MasterFrame_T1_T2$Time,
-                    MasterFrame_T1_T2$SampleID)
-##models with no genotypes
-lme_no_geno <- lapply(MasterFrame_T1_T2[,mets],
-                      function(metInt, group, Times, ID){
-                        ##full model
-                        lme(metInt ~ Times*group, random =~ 1 | ID,
-                            method="ML");
-                      }, 
-                      MasterFrame_T1_T2$GroupPred, 
-                      MasterFrame_T1_T2$Time,
-                      MasterFrame_T1_T2$SampleID)
-##models with no group
-lme_no_group <- lapply(MasterFrame_T1_T2[,mets],
-                      function(metInt, geno, Times, ID){
-                        ##full model
-                        lme(metInt ~ Times*geno, random =~ 1 | ID,
-                            method="ML");
-                      }, 
-                      MasterFrame_T1_T2$GenoMDX, 
-                      MasterFrame_T1_T2$Time,
-                      MasterFrame_T1_T2$SampleID)
-##models with no time
-lme_no_time <- lapply(MasterFrame_T1_T2[,mets],
-                      function(metInt, geno, group, ID){
-                        ##full model
-                        lme(metInt ~ geno*group, random =~ 1 | ID,
-                            method="ML");
-                      }, 
-                      MasterFrame_T1_T2$GenoMDX, 
-                      MasterFrame_T1_T2$GroupPred,
-                      MasterFrame_T1_T2$SampleID)
-
-
-```
-
-Used saved models to perform association tests using ANOVA:
-
-```{r}
-##associations with genotype
-p_geno <- mapply(function(mod1,mod2){anova(mod1,mod2)["p-value"][2,1]},
-                 lme_full, lme_no_geno)
-p_geno*length(all_mets)
-
-##associations with group
-p_group <- mapply(function(mod1,mod2){anova(mod1,mod2)["p-value"][2,1]},
-                 lme_full, lme_no_group)
-p_group*length(all_mets)
-
-##associations with time
-p_time <- mapply(function(mod1,mod2){anova(mod1,mod2)["p-value"][2,1]},
-                 lme_full, lme_no_time)
-p_time*length(all_mets)
-```
-
-## Correlation between these two metabolites
-
-```{r}
-cor(MasterFrameNoQC[,met_top], MasterFrameNoQC[,met_creatine])
-cor(MasterFrame_T1_T2[,met_top], MasterFrame_T1_T2[,met_creatine])
-
-cor(rank(MasterFrameNoQC[,met_top]), rank(MasterFrameNoQC[,met_creatine]))
-cor(rank(MasterFrame_T1_T2[,met_top]), rank(MasterFrame_T1_T2[,met_creatine]))
-
-```
-
-## Test hypotheses relating to impact of genotype, group, and time for the top 50 metabolites from the T0 analysis
+## Test hypotheses relating to impact of genotype, group, and time for the top 50 metabolites from the T0 analysis + creatine, creatinine
 
 Fit models (include creatine and creatinine here again):
 
@@ -547,57 +382,101 @@ vennDiagram(v2,
                            "pink1"))
 ```
 
+Save results in flat file:
+```{r}
+lme_full_results_table <- 
+  data.frame()
+
+for(metab in names(lme_full))
+{
+  ##get fixed effects info
+  summary_coef_metab <- coef(summary(lme_full[[metab]]))
+  
+  ##get random effects estimated standard deviations
+  random_metab_SD <- as.numeric(as.character(unlist(VarCorr(lme_full[[metab]])[1,"StdDev"])))
+  
+  ##get p-value from the 3 likelihood ratio tests (from the anova function)
+  p_vals_LRT <- c(p_geno[metab], p_time[metab], p_group[metab])
+  
+  ##get 95% confidence intervals
+  CIs <- intervals(lme_full[[metab]], level=0.95, which="fixed")$fixed
+  
+  ##first arrange this in proper way:
+  summary_results_metab <- c(summary_coef_metab[,"Value"],
+                             summary_coef_metab[,"Std.Error"],
+                             summary_coef_metab[,"DF"],
+                             CIs[,"lower"],
+                             CIs[,"upper"],
+                             summary_coef_metab[,"t-value"],
+                             summary_coef_metab[,"p-value"],
+                             random_metab_SD,
+                             p_vals_LRT)
+  summary_results_metab <- data.frame(matrix(summary_results_metab,nrow=1))
+  summary_results_metab <- cbind(metab, summary_results_metab)
+  ##now dump this into table with all metabolites
+  lme_full_results_table <- rbind(lme_full_results_table,
+                                  summary_results_metab)
+}
+##fix column names
+##preprend letters to make the sorting easier
+colnames(lme_full_results_table)[1] <- "(AA).Metabolite"
+colnames(lme_full_results_table)[-1] <- 
+  c(paste(rownames(summary_coef_metab),
+          rep(c("A.Beta","B.SE","C.DF",
+                "D.95 CI lower", "E.95 CI upper",
+                "F.T","G.P"),
+              each=nrow(summary_coef_metab))),
+    "YY.random intercept SD",
+    "ZZ.P LRT genotype",
+    "ZZ.P LRT time",
+    "ZZ.P LRT treatment")
+
+##capitalize everything, change "group" to "treatment"
+colnames(lme_full_results_table) <-
+  toupper(gsub("group","treatment",
+               colnames(lme_full_results_table)))
+
+lme_full_results_table <- lme_full_results_table[,order(colnames(lme_full_results_table))]
+                                
+##now take out the preprended stuff
+colnames(lme_full_results_table) <-
+  gsub("\\(AA\\)\\.|A\\.|B\\.|C\\.|D\\.|E\\.|F\\.|G\\.|YY\\.|ZZ\\.","",
+       colnames(lme_full_results_table))
+
+##now save to CSV file
+write.csv(lme_full_results_table, file="../lme_models_times_T1_T2_summary_results.csv",
+          row.names = FALSE, quote = FALSE)
+
+```
+
 ## Now make some plots for the top metabolites associated with group
 
 ```{r, top_T0_geno_assoc_group_T1_T2}
 MasterFrame_T0_WT <- filter(MasterFrame_T0, GenoMDX==0)
 MasterFrame_T0_MDX <- filter(MasterFrame_T0, GenoMDX==1)
 
-for(met in top_assoc_group)
-{
-  g1 <- ggplot(MasterFrameNoQC, aes_string(x="Time", y=paste("`",met,"`",sep=""),
-                                           group="SampleID", color="Group", linetype="Group")) +
-    geom_point() +
-    geom_line(aes(color=Genotype)) +
-    scale_color_manual(name = "Genotype and group", 
-                       breaks = c("group 1", "group 2", "WT", "mdx23"),
-                       labels = c("group 1", "group 2", "WT", "mdx23"),
-                       values = c(1, 3, 2, 4)) +
-    ggtitle(paste("p_geno =", signif(p_geno[met],2),
-                  ", p_time =", signif(p_time[met],2),
-                  ", p_group =", signif(p_group[met],2)))
+##look specifically at these 2 metabolites:
+met_484 <- "m/z = 484.16091, mode = Negative, RT = 155.62501"
+met_885 <- "m/z = 884.92954, mode = Positive, RT = 231.26267"
+##double-check that they are among the top ones with group
+setdiff(c(met_484, met_885), top_assoc_group)
+
+for(met in c(met_484, met_885))
+{  
+  if(met == met_484)
+  {
+    met_title <- "m/z = 484.16, Negative mode"
+  }
+  if(met == met_885)
+  {
+    met_title <- "m/z = 884.93, Positive mode"
+  }
   
-  g2 <- ggplot(MasterFrameNoQC, aes_string(x="Time", y=paste("`",met,"`",sep=""),
-                                           group="SampleID", color="Group")) +
-    geom_point() +
-    geom_line(aes(color=Genotype)) +
-    facet_grid(. ~ Group) +
-    scale_color_manual(name = "Genotype and group", 
-                       breaks = c("group 1", "group 2", "WT", "mdx23"),
-                       labels = c("group 1", "group 2", "WT", "mdx23"),
-                       values = c(1, 3, 2, 4)) +
-    ggtitle(paste("p_geno =", signif(p_geno[met],2),
-                  ", p_time =", signif(p_time[met],2),
-                  ", p_group =", signif(p_group[met],2)))
-  
-  g3 <- ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met,"`",sep=""),
-                                             group="SampleID", color="Genotype", linetype="Group")) +
-    geom_point() +
-    geom_line() +
-    scale_color_manual(name = "Genotype", 
-                       breaks = c("WT", "mdx23"),
-                       labels = c("WT", "mdx23"),
-                       values = c(2, 4)) +
-    ggtitle(paste("p_geno =", signif(p_geno[met],2),
-                  ", p_time =", signif(p_time[met],2),
-                  ", p_group =", signif(p_group[met],2)))
-  
-  ##better version of plot
   g3 <- ggplot(MasterFrame_T1_T2, aes_string(x="Time", y=paste("`",met,"`",sep=""),
                                              group="SampleID", color="Genotype", shape="Genotype", 
                                              linetype="Treatment")) +
-    geom_point() +
-    geom_line() +
+    geom_point() + geom_line() +
+    ggtitle(met_title) +
     scale_color_manual(name = "Genotype", 
                        breaks = c("WT", "mdx"),
                        labels = c("WT", "mdx"),
@@ -606,34 +485,14 @@ for(met in top_assoc_group)
                        breaks = c("WT", "mdx"),
                        labels = c("WT", "mdx"),
                        values = c(17, 16)) +
-    ylab("Normalized, log2-transformed value") + 
+    ylab("Normalized, log2-transformed values") + 
     theme_bw() +
-    theme(plot.title = element_text(hjust=0.5),
+    theme(plot.title = element_text(size = 13, hjust=0.5),
+          axis.title = element_text(size=12),
+          axis.text = element_text(size=11),
           legend.text = element_text(size=11))
   
-  g4 <- ggplot(MasterFrame_T0_WT, aes_string(x="Group",y=paste("`",met,"`",sep=""))) +
-    geom_boxplot() + geom_point()
-  
-  ##get p-value from t-test
-  p4 <- t.test(MasterFrame_T0_WT[MasterFrame_T0_WT$Group=="group 1",met],
-               MasterFrame_T0_WT[MasterFrame_T0_WT$Group=="group 2",met])$p.value
-  
-  g4 <- g4 + ggtitle(paste("WT, p-value =", round(p4,3)))
-  
-  g5 <- ggplot(MasterFrame_T0_MDX, aes_string(x="Group",y=paste("`",met,"`",sep=""))) +
-    geom_boxplot() + geom_point()
-  
-  ##get p-value from t-test
-  p5 <- t.test(MasterFrame_T0_MDX[MasterFrame_T0_MDX$Group=="group 1",met],
-               MasterFrame_T0_MDX[MasterFrame_T0_MDX$Group=="group 2",met])$p.value
-  
-  g5 <- g5 + ggtitle(paste("mdx, p-value =", round(p5,3)))
-
-  print(g1)
-  print(g2)
   print(g3)
-  print(g4)
-  print(g5)
 }  
 
 ```

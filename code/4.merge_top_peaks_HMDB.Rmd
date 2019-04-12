@@ -1,0 +1,118 @@
+---
+title: "DMD mdx corticosteroids project: Merge statistical results for top peaks with HMDB annotations"
+author: Simina Boca
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.path = "../figures/")
+```
+
+## Read in files
+
+```{r}
+stat_res <- read.csv("../top_peaks_compare_genotypes_T0_urine.csv")
+HMDB_pos <- read.csv("../top_peaks_compare_genotypes_T0_urine_HMDB_positive.csv")
+HMDB_neg <- read.csv("../top_peaks_compare_genotypes_T0_urine_HMDB_negative.csv")
+```
+
+Look at the headers:
+
+```{r}
+head(stat_res)
+head(HMDB_pos)
+head(HMDB_neg)
+```
+
+## Process results so that they can be merged
+
+Round the m/z value to 4 digits for all datasets:
+
+```{r}
+stat_res$mz <- round(stat_res$mz,4)
+HMDB_pos$query_mass <- round(HMDB_pos$query_mass,4)
+HMDB_neg$query_mass <- round(HMDB_neg$query_mass,4)
+```
+
+Rename columns with m/z value so they're the same for both datasets:
+
+```{r}
+colnames(stat_res)[colnames(stat_res) == "mz"] <- "peak_mz"
+colnames(HMDB_pos)[colnames(HMDB_pos) == "query_mass"] <- 
+  colnames(HMDB_neg)[colnames(HMDB_neg) == "query_mass"] <- 
+  "peak_mz"
+```
+
+Add rank column to statistical results:
+
+```{r}
+##make sure they are sorted by increasing p-value
+stat_res <- stat_res[order(stat_res$p_value),]
+stat_res$rank <- 1:nrow(stat_res)
+
+head(stat_res)
+```
+
+## Merge files
+
+Merge all 3 files:
+
+```{r}
+HMDB_all <- rbind(HMDB_pos, HMDB_neg)
+stat_res_annot <- merge(stat_res, HMDB_all,
+                        all.x = TRUE)
+
+head(stat_res_annot)
+```
+
+## Make some changes to output formatting and save it
+
+Order output by rank:
+
+```{r}
+stat_res_annot <- stat_res_annot[order(stat_res_annot$rank),]
+
+##make sure all ranks are included
+identical(as.numeric(sort(unique(stat_res_annot$rank))),
+          as.numeric(1:nrow(stat_res)))
+```
+
+Change some of the column names to match S4 File and save output:
+
+```{r}
+colnames(stat_res_annot) <- c("Peak m/z value",
+                              "Peak mode",
+                              "Peak retention time (seconds)",
+                              "Log 2 fold change (mean difference)",
+                              "DF",
+                              "95% CI: lower bound", "95% CI: upper bound",
+                              "T-value",
+                              "P-value",
+                              "Rank",
+                              "Compound ID", "Compound name",
+                              "KEGG ID", "Formula",
+                              "Monoisotopic mass of putative metabolite",
+                              "Putative adduct", "Putative adduct type",
+                              "Adduct m/z value",
+                              "Delta ppm")
+
+##change some formatting, so it's the same as in the S4 file
+stat_res_annot[,1] <- paste("m/z =", stat_res_annot[,1])
+stat_res_annot[,2] <- paste("mode =", stat_res_annot[,2])
+stat_res_annot[,3] <- paste("RT =", stat_res_annot[,3])
+
+##check ppm range
+range(stat_res_annot[,"Delta ppm"], na.rm = TRUE)
+
+write.csv(x = stat_res_annot,
+          row.names = FALSE,
+          file = "../top_peaks_compare_genotypes_T0_urine_HMDB_both_modes.csv",
+          quote = FALSE)
+```
+
+## Session info
+
+```{r}
+sessionInfo()
+```

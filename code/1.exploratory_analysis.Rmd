@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, fig.path = "../figures/")
 ```
 
 ```{r}
@@ -14,7 +14,10 @@ library(dplyr)
 library(reshape2)
 library(ggplot2)
 library(nlme)
-library(plotly)
+library(limma) ##for Venn Diagram
+
+source("functions.R")
+
 ```
 
 ## Read in data
@@ -24,6 +27,72 @@ MasterFrame <- read.delim(file="../data/Supplemental Table 1.tsv",
                           header=TRUE,
                           sep="\t",
                           check.names=FALSE)
+```
+
+Get values for various variables:
+
+```{r}
+table(MasterFrame$Sample == "QC", 
+      MasterFrame$SampleID == "QC",
+      useNA="ifany")
+table(MasterFrame$Sample == "QC", 
+      MasterFrame$Time,
+      useNA="ifany")
+table(MasterFrame$Sample == "QC", 
+      MasterFrame$Genotype,
+      useNA="ifany")
+table(MasterFrame$Sample == "QC", 
+      MasterFrame$Group,
+      useNA="ifany")
+
+MasterFrameNoQC <- MasterFrame[MasterFrame$Sample != "QC",]
+
+table(MasterFrameNoQC$Genotype,
+      MasterFrameNoQC$Time)
+
+table(MasterFrameNoQC$Genotype,
+      MasterFrameNoQC$Time,
+      MasterFrameNoQC$Group)
+
+TimeSample_tab <- table(as.character(MasterFrameNoQC$Time), ##this is to remove the QC level from the table
+                        as.character(MasterFrameNoQC$SampleID))
+TimeSample_tab
+##get the number of mice that have T0, T1, T2 data
+sum(TimeSample_tab["T0",]*TimeSample_tab["T1",]*TimeSample_tab["T2",])
+##no T2, but T1 data
+sum(TimeSample_tab["T0",]*TimeSample_tab["T1",]*(1-TimeSample_tab["T2",]))
+##all other combinations...
+sum(TimeSample_tab["T0",]*(1-TimeSample_tab["T1",])*TimeSample_tab["T2",])
+sum(TimeSample_tab["T0",]*(1-TimeSample_tab["T1",])*(1-TimeSample_tab["T2",]))
+
+sum(TimeSample_tab["T0",]*TimeSample_tab["T1",]*TimeSample_tab["T2",])
+sum(TimeSample_tab["T0",]*TimeSample_tab["T1",]*(1-TimeSample_tab["T2",]))
+sum((1-TimeSample_tab["T0",])*TimeSample_tab["T1",]*TimeSample_tab["T2",])
+sum((1-TimeSample_tab["T0",])*TimeSample_tab["T1",]*(1-TimeSample_tab["T2",]))
+
+sum(TimeSample_tab["T0",]*TimeSample_tab["T1",]*TimeSample_tab["T2",])
+sum(TimeSample_tab["T0",]*(1-TimeSample_tab["T1",])*TimeSample_tab["T2",])
+sum((1-TimeSample_tab["T0",])*TimeSample_tab["T1",]*TimeSample_tab["T2",])
+sum((1-TimeSample_tab["T0",])*(1-TimeSample_tab["T1",])*TimeSample_tab["T2",])
+```
+
+```{r, VennDiagram_sample_time_points}
+##better to do a Venn diagram!
+
+##change "T0" to "Baseline"
+MasterFrameNoQC$Time2 <- as.character(MasterFrameNoQC$Time)
+MasterFrameNoQC$Time2[MasterFrameNoQC$Time == "T0"] <- "Baseline"
+                      
+TimeSample_tab <- table(as.character(MasterFrameNoQC$Time2), ##this is to remove the QC level from the table
+                        as.character(MasterFrameNoQC$SampleID))
+
+v <- vennCounts(t(TimeSample_tab))
+
+vennDiagram(v,
+            circle.col = c("orange",
+                           "skyblue",
+                           "pink1"))
+
 ```
 
 ## Get number of samples per group
@@ -41,108 +110,88 @@ T_WT <-
 
 ## Make PCA plots to check for batch effects, artifacts
 
-### First get PCA decompositions:
-
-PCA for negative mode:
-```{r}
-dataNEG <- MasterFrame[,grep("Negative",colnames(MasterFrame))]
-
-PCAneg <- prcomp(as.matrix(dataNEG),
-                 center=TRUE, scale=TRUE)$x
-dim(PCAneg)
-
-MasterFrame <- cbind(MasterFrame, PCneg1 = PCAneg[,1], PCneg2 = PCAneg[,2])
-```
-
-PCA for positive mode:
-```{r}
-dataPOS <- MasterFrame[,grep("Positive",colnames(MasterFrame))]
-
-PCApos <- prcomp(as.matrix(dataPOS),
-                 center=TRUE, scale=TRUE)$x
-dim(PCApos)
-
-MasterFrame <- cbind(MasterFrame, PCpos1 = PCApos[,1], PCpos2 = PCApos[,2])
-```
+### First get PCA decomposition:
 
 PCA for both modes:
 ```{r}
 dataAll <- MasterFrame[,grep("m/z",colnames(MasterFrame))]
 
-PCAall <- prcomp(as.matrix(dataAll),
-                 center=TRUE, scale=TRUE)$x
+PCAall_full <- prcomp(as.matrix(dataAll),
+                      center=TRUE, scale=TRUE)
+summary(PCAall_full)
+
+PCAall <- PCAall_full$x
+
 dim(PCAall)
 
 MasterFrame <- cbind(MasterFrame, PCall1 = PCAall[,1], PCall2 = PCAall[,2])
 ```
 
-### Negative mode
+### Now make and save PCA plots:
 
-```{r}
-plot_ly(MasterFrame, y = ~PCneg2, x = ~PCneg1, color= ~Time, type = "scatter",
-        hoverinfo = 'text',
-        text = ~paste(Sample))
-```
-```{r}
-plot_ly(MasterFrame, y = ~PCneg2, x = ~PCneg1, color= ~Genotype, type = "scatter",
-        hoverinfo = 'text',
-        text = ~paste(Sample))
-```
-```{r}
-plot_ly(MasterFrame, y = ~PCneg2, x = ~PCneg1, color= ~Group, type = "scatter",
-        hoverinfo = 'text',
-        text = ~paste(Sample))
-```
-```{r}
-plot_ly(MasterFrame, y = ~PCneg2, x = ~PCneg1, color= ~run_order, type = "scatter",
-        hoverinfo = 'text',
-        text = ~paste(Sample))
-```
+```{r, PCA_plots, fig.height=3, fig.width=12}
+MasterFrame$Time <- as.character(MasterFrame$Time)
+MasterFrame$Time[MasterFrame$Time == "T0"] <- "Baseline"
 
-### Positive mode
+MasterFrame$PC1 <- MasterFrame$PCall1
+MasterFrame$PC2 <- MasterFrame$PCall2
 
-```{r}
-plot_ly(MasterFrame, y = ~PCpos2, x = ~PCpos1, color= ~Time, type = "scatter",
-        hoverinfo = 'text',
-        text = ~paste(Sample))
-```
-```{r}
-plot_ly(MasterFrame, y = ~PCpos2, x = ~PCpos1, color= ~Genotype, type = "scatter",
-        hoverinfo = 'text',
-        text = ~paste(Sample))
-```
-```{r}
-plot_ly(MasterFrame, y = ~PCpos2, x = ~PCpos1, color= ~Group, type = "scatter",
-        hoverinfo = 'text',
-        text = ~paste(Sample))
-```
-```{r}
-plot_ly(MasterFrame, y = ~PCpos2, x = ~PCpos1, color= ~run_order, type = "scatter",
-        hoverinfo = 'text',
-        text = ~paste(Sample))
-```
+MasterFrame$Treatment <- ifelse(MasterFrame$Group == "group 1",
+                                "prednisolone",
+                                "vehicle control")
 
-### Both modes
+MasterFrame$Genotype <- as.character(MasterFrame$Genotype)
+MasterFrame$Genotype[MasterFrame$Genotype == "mdx23"] <- "mdx"
+table(MasterFrame$Genotype)
 
-```{r}
-plot_ly(MasterFrame, y = ~PCall2, x = ~PCall1, color= ~Time, type = "scatter",
-        hoverinfo = 'text',
-        text = ~paste(Sample))
-```
-```{r}
-plot_ly(MasterFrame, y = ~PCall2, x = ~PCall1, color= ~Genotype, type = "scatter",
-        hoverinfo = 'text',
-        text = ~paste(Sample))
-```
-```{r}
-plot_ly(MasterFrame, y = ~PCall2, x = ~PCall1, color= ~Group, type = "scatter",
-        hoverinfo = 'text',
-        text = ~paste(Sample))
-```
-```{r}
-plot_ly(MasterFrame, y = ~PCall2, x = ~PCall1, color= ~run_order, type = "scatter",
-        hoverinfo = 'text',
-        text = ~paste(Sample))
+MasterFrame$Genotype[MasterFrame$SampleID == "QC"] <- 
+MasterFrame$Time[MasterFrame$SampleID == "QC"] <- 
+MasterFrame$Treatment[MasterFrame$SampleID == "QC"] <- 
+  "NA (QC sample)"
+
+MasterFrame$Treatment[MasterFrame$Time == "Baseline"] <- 
+  "NA (Baseline)"
+
+MasterFrame$Genotype <- factor(MasterFrame$Genotype, 
+                               levels = c("mdx","WT","NA (QC sample)"))
+MasterFrame$Time <- factor(MasterFrame$Time, 
+                           levels = c("Baseline", "T1","T2","NA (QC sample)"))
+MasterFrame$Treatment <- factor(MasterFrame$Treatment, 
+                                levels = c("prednisolone", "vehicle control","NA (Baseline)","NA (QC sample)"))
+
+##color-blind friendly palette from http://www.cookbook-r.com/Graphs/Colors_(ggplot2)/
+cbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+cbPalette3 <- c("#0072B2", "#56B4E9", "#000000")
+cbPalette4 <- c("#D55E00", "#009E73", "#E69F00", "#000000")
+
+ggA <- ggplot(MasterFrame, aes(y=PC2, x=PC1, color=Genotype)) +
+  geom_point() +
+  ggtitle("a)\nImpact of genotype") +
+  theme_bw() +
+  theme(plot.title = element_text(size = 13, hjust=0.5),
+        axis.title = element_text(size=12),
+        axis.text = element_text(size=11),
+        legend.text = element_text(size=11)) +
+  scale_color_manual(values=cbPalette3)
+
+ggB <- ggplot(MasterFrame, aes(y=PC2, x=PC1, color=Time)) +
+  geom_point() +
+  ggtitle("b)\nImpact of time") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust=0.5),
+        legend.text = element_text(size=11)) +
+  scale_color_manual(values=cbPalette4)
+
+ggC <- ggplot(MasterFrame, aes(y=PC2, x=PC1, color=Treatment)) +
+  geom_point() +
+  ggtitle("c)\nImpact of treatment") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust=0.5),
+        legend.text = element_text(size=11)) +
+  scale_color_manual(values=cbPalette4)
+
+multiplot(ggA, ggB, ggC, cols=3)
 ```
 
 ## Session info
